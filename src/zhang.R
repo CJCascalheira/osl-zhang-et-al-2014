@@ -29,11 +29,13 @@ zhang_clean <- zhang %>%
     t2_curious = T2_Actual_Curious,
     t1_interest = T1_Predicted_Interest_Composite,
     t2_interest = T2_Actual_Interest_Composite
-  )
+  ) %>%
+  mutate(subject_id = seq(1, 130, 1))
 
 # Condition as factor
 zhang_clean <- within(zhang_clean, {
   condition <- factor(condition, labels = c("ordinary", "extraordinary"))
+  subject_id <- factor(subject_id)
 })
 
 # Number of participants in each condition
@@ -42,6 +44,28 @@ zhang_clean %>% count(condition)
 # Split data by condition for descriptive statistics
 ordinary <- zhang_clean %>% filter(condition == "ordinary")
 extraordinary <- zhang_clean %>% filter(condition == "extraordinary")
+
+# Convert data frame into long format
+long_extra <- zhang_clean %>%
+  select(condition, subject_id, t1_extra, t2_extra) %>%
+  gather(key = extra_time, value = extra_rating, -c(condition, subject_id))
+
+long_curious <- zhang_clean %>%
+  select(t1_curious, t2_curious) %>%
+  gather(key = curious_time, value = curious_rating)
+
+long_interest <- zhang_clean %>%
+  select(t1_interest, t2_interest) %>%
+  gather(key = interest_time, value = interest_rating)
+
+(zhang_long <- bind_cols(long_extra, long_curious, long_interest))
+
+# Set time variables as factors
+(zhang_long <- within(zhang_long, {
+  extra_time <- factor(extra_time)
+  curious_time <- factor(curious_time)
+  interest_time <- factor(interest_time)
+}))
 
 ####### EXTRAORDINARINESS MANIPULATION CHECK #######
 
@@ -82,6 +106,8 @@ leveneTest(t1_extra ~ condition, data = zhang_clean)
 ####################################################################################
 
 ####### EXTRAORDINARINESS OVER TIME BY CONDITION #######
+
+
 
 #### Outliers?
 

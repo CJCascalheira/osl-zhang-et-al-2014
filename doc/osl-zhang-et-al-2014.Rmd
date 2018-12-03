@@ -57,7 +57,7 @@ What do the data look like?
 glimpse(zhang)
 ```
 
-For this analysis, we only need the first seven variables. Let's `select()` them using `snake_case` and abbreviation.
+For this analysis, we only need the first seven variables. Let's `select()` them using `snake_case` and abbreviation. Since repeated measures ANOVA treats each subject as a factor, we need to add an additional variable to identify the participants.
 
 ```{r}
 zhang_clean <- zhang %>%
@@ -69,14 +69,18 @@ zhang_clean <- zhang %>%
     t2_curious = T2_Actual_Curious,
     t1_interest = T1_Predicted_Interest_Composite,
     t2_interest = T2_Actual_Interest_Composite
-  )
+  ) %>%
+  mutate(subject_id = seq(1, 130, 1))
 ```
 
-Make condition a between-subjects factor with appropriate labels. Since the ordinary condition is mentioned first throughout the article, we can assume that 1 corresponds to ordinary. If our analyses do not match those reported in the paper, then it will be important to return to this step.
+Make `condition` a between-subjects factor with appropriate labels. Since the ordinary condition is mentioned first throughout the article, we can assume that 1 corresponds to ordinary. If our analyses do not match those reported in the paper, then it will be important to return to this step.
+
+Also, transform `subject_id` into a factor in which every level is an individual participant.
 
 ```{r}
 zhang_clean <- within(zhang_clean, {
   condition <- factor(condition, labels = c("ordinary", "extraordinary"))
+  subject_id <- factor(subject_id)
 })
 ```
 
@@ -93,6 +97,34 @@ Let's split the data by condition to calculate the standard error later with `ps
 ```{r}
 ordinary <- zhang_clean %>% filter(condition == "ordinary")
 extraordinary <- zhang_clean %>% filter(condition == "extraordinary")
+```
+
+Finally, in order to conduct a repeated measures ANOVA with a continuous dependent measure, time as the within-subjects factor, and condition as the between-subjects factor, it is imperative that we transform the data frame into long format.
+
+```{r}
+long_extra <- zhang_clean %>%
+  select(condition, subject_id, t1_extra, t2_extra) %>%
+  gather(key = extra_time, value = extra_rating, -c(condition, subject_id))
+
+long_curious <- zhang_clean %>%
+  select(t1_curious, t2_curious) %>%
+  gather(key = curious_time, value = curious_rating)
+
+long_interest <- zhang_clean %>%
+  select(t1_interest, t2_interest) %>%
+  gather(key = interest_time, value = interest_rating)
+
+(zhang_long <- bind_cols(long_extra, long_curious, long_interest))
+```
+
+The new variables with the suffix `_time` must become factors.
+
+```{r}
+(zhang_long <- within(zhang_long, {
+  extra_time <- factor(extra_time)
+  curious_time <- factor(curious_time)
+  interest_time <- factor(interest_time)
+}))
 ```
 
 ## Understand
@@ -219,6 +251,8 @@ leveneTest(t1_extra ~ condition, data = zhang_clean)
 The *F*-value does not exceed the critical values (*p* = .547), so we accept the null hypothesis: the variances are homogenous.
 
 ### Extraordinariness Over Time by Condition {.tabset .tabset-pills}
+
+
 
 #### Outliers?
 
