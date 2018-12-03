@@ -37,7 +37,7 @@ Let's load the packages necessary for this analysis into our workspace.
 ```{r message = FALSE}
 library(psych) # describe data
 library(broom) # coefficient-level information
-library(car) # Levene's test
+library(car) # Levene's test, Anova function
 library(nlme) # repeated measures ANOVA
 library(multcomp) # post-hoc measures
 library(tidyverse) # utility and visualization
@@ -51,9 +51,90 @@ zhang <- read_csv("../data/Zhang et al. 2014 Study 3.csv")
 
 ## Clean
 ___
+What do the data look like?
+
+```{r}
+glimpse(zhang)
+```
+
+For this analysis, we only need the first seven variables. Let's `select()` them using `snake_case` and abbreviation.
+
+```{r}
+zhang_clean <- zhang %>%
+  select(
+    condition = Condition,
+    t1_extra = T1_Extraordinariness,
+    t2_extra = T2_Extraordinariness,
+    t1_curious = T1_Predicted_Curious,
+    t2_curious = T2_Actual_Curious,
+    t1_interest = T1_Predicted_Interest_Composite,
+    t2_interest = T2_Actual_Interest_Composite
+  )
+```
+
+Make condition a between-subjects factor with appropriate labels. Since the ordinary condition is mentioned first throughout the article, we can assume that 1 corresponds to ordinary. If our analyses do not match those reported in the paper, then it will be important to return to this step.
+
+```{r}
+zhang_clean <- within(zhang_clean, {
+  condition <- factor(condition, labels = c("ordinary", "extraordinary"))
+})
+```
+
+How many participants are in each condition?
+
+```{r}
+zhang_clean %>% count(condition)
+```
+
+Thus, we have an unbalanced design. 
 
 ## Understand
 ___
+This study is truly a factorial design. It combines within-subjects and between-subjects factors. We must perform repeated measures ANOVA because [all participants received all conditions](http://www.discoveringstatistics.com/docs/repeatedmeasures.pdf).
+
+We will test for mean differences between conditions and between time points, running post-hoc tests to discover which condition/time combination is significant. The null and altnerative hypotheses are:
+
+$$H_0: \mu_1 = \mu_2 = \mu_3 = \dots = \mu_k \\ H_1: \text{at least two means are significantly different}$$
+
+The **repeated measures mixed ANOVA** has [six assumptions](https://statistics.laerd.com/spss-tutorials/mixed-anova-using-spss-statistics.php), two of which are met through experimental design:
+
+1. **Continuous dependent variable** at the interval or ratio level.
+
+2. **Categorical independent variables** as factors with two or more levels that can be:
+    - *within-subjects*, such as the two different time points, or
+    - *between-subjects*, such as two different conditions.
+
+3. **No significant outliers** in any level combination of the within-subjects factor or between-subjects factor. Outliers skew data, distort the differences between related groups, and affect normality. 
+
+4. **Approximately normal distribution** of the dependent variable for each level combination of both the within-subjects and between-subjects factors. Since ANOVA is robust, mild violations of normality can be tolerated if the number of observations is uniform across levels, or when the sample size is large, `n >= 30`. The assumption assesses the distribution of residuals with the Shapiro-Wilk test, density curves, Q-Q plots, or histograms.
+
+5. **Homogeneity of variances** for each combination of the groups of the two within-subjects and between-subjects factors. Assessed with Levene's test.
+
+6. **Sphericity**, which states that the differences in variances between the related groups of the within-subjects factor for all groups of the between-subjects factor (i.e., dependent variable) are equal. [This assumption](https://www.sheffield.ac.uk/polopoly_fs/1.531222!/file/MASH_repeated_measures_ANOVA_SPSS.pdf) *must* be met. It is assessed with Mauchley's test. If *p* > 0.05, sphericity can be assumed. If the test is significant, then use the Greenhouse-Geisser correction.
+
+### Manipulation Check of Extraordinariness {.tabset .tabset-pills}
+
+Do participants in the extraordinary condition actually perceive Valentine's Day to be more extraordinary than participants rating a normal day?
+
+We can answer this with a simple one-way between-groups ANOVA.
+
+**Note**: the *F*-value will not match the statistic reported in the original paper.
+
+```{r}
+# Create analysis of variance
+t1_extra_aov <- aov(t1_extra ~ condition, data = zhang_clean)
+
+# Summarize one-way ANOVA
+Anova(t1_extra_aov)
+```
+
+#### Outliers?
+
+#### Normality?
+
+#### Homoscedasticity?
+
+### Extraordinariness Over Time
 
 ## Communicate
 ___
