@@ -320,6 +320,9 @@ library(tidyverse) # utility and visualization</code></pre>
 ## 1 ordinary         64
 ## 2 extraordinary    66</code></pre>
 <p>Thus, we have an unbalanced design.</p>
+<p>Let’s split the data by condition to calculate the standard error later with <code>psych::describe</code>.</p>
+<pre class="r"><code>ordinary &lt;- zhang_clean %&gt;% filter(condition == &quot;ordinary&quot;)
+extraordinary &lt;- zhang_clean %&gt;% filter(condition == &quot;extraordinary&quot;)</code></pre>
 </div>
 <div id="understand" class="section level2">
 <h2>Understand</h2>
@@ -329,7 +332,10 @@ library(tidyverse) # utility and visualization</code></pre>
 <p><span class="math display">\[H_0: \mu_1 = \mu_2 = \mu_3 = \dots = \mu_k \\ H_1: \text{at least two means are significantly different}\]</span></p>
 <p>The <strong>repeated measures mixed ANOVA</strong> has <a href="https://statistics.laerd.com/spss-tutorials/mixed-anova-using-spss-statistics.php">six assumptions</a>, two of which are met through experimental design:</p>
 <ol style="list-style-type: decimal">
-<li><p><strong>Continuous dependent variable</strong> at the interval or ratio level.</p></li>
+<li><strong>Continuous dependent variable</strong> at the interval or ratio level.
+<ul>
+<li>In this analysis, there is more than one dependent variable, but we shall <em>only</em> test one at a time (i.e., no need for MANOVA).</li>
+</ul></li>
 <li><strong>Categorical independent variables</strong> as factors with two or more levels that can be:
 <ul>
 <li><em>within-subjects</em>, such as the two different time points, or</li>
@@ -340,11 +346,38 @@ library(tidyverse) # utility and visualization</code></pre>
 <li><p><strong>Homogeneity of variances</strong> for each combination of the groups of the two within-subjects and between-subjects factors. Assessed with Levene’s test.</p></li>
 <li><p><strong>Sphericity</strong>, which states that the differences in variances between the related groups of the within-subjects factor for all groups of the between-subjects factor (i.e., dependent variable) are equal. <a href="https://www.sheffield.ac.uk/polopoly_fs/1.531222!/file/MASH_repeated_measures_ANOVA_SPSS.pdf">This assumption</a> <em>must</em> be met. It is assessed with Mauchley’s test. If <em>p</em> &gt; 0.05, sphericity can be assumed. If the test is significant, then use the Greenhouse-Geisser correction.</p></li>
 </ol>
+<div id="auxiliary-analyses" class="section level3 tabset tabset-pills">
+<h3>Auxiliary Analyses</h3>
+<p>In addition to computing repeated measures ANOVA and assumption tests, we will calculate the confidence intervals and effect sizes of the dependent variables (i.e., extraordinariness, curiosity, interest) for each level combination of both the within-subjects and between-subjects factors.</p>
+<div id="confidence-intervals" class="section level4">
+<h4>Confidence Intervals</h4>
+<p>The original study reports <strong>confidence intervals</strong> at the 95% level. This assumes an alpha of 0.05. The critical value at the 95% confidence interval is 1.96. But if you were not sure, here is <a href="http://www.stat.ucla.edu/~rgould/110as02/bsci">how to calculate the critical value in R</a> for the lower bound.</p>
+<pre class="r"><code># Set significance level
+alpha &lt;- 0.05
+
+# Calculate critical value for lower bound 
+qnorm(alpha/2)</code></pre>
+<pre><code>## [1] -1.959964</code></pre>
+<p>The critical value for the upper bound is the opposite of the lower bound, so simply switch the signs. Alternatively, you could add 0.025 (i.e., alpha / 2) to the confidence level and run <code>qnorm()</code> again. This would be useful for writing functions or reproducible scripts.</p>
+<pre class="r"><code>qnorm(0.95 + (alpha / 2))</code></pre>
+<pre><code>## [1] 1.959964</code></pre>
+<p>Since we will calculate the confidence intervals for the sampling distribution of the sample mean, we must subtract and add the margin of error to the mean of each between-subjects factor. The <strong>margin of error</strong> is the critical value multiplied by the standard error of the sampling distribution of the sample mean.</p>
+<p>The general equation to manually calculate the confidence interval is:</p>
+<p><span class="math display">\[\bar{x} \pm z^*(SE_\bar{x})\]</span></p>
+<p>You could save the absolute value of the critical value as an R object for use later. In this analysis, 1.96 will be preferred.</p>
+</div>
+<div id="effect-size" class="section level4">
+<h4>Effect Size</h4>
+<p>The effect size of interaction terms in a repeated measures ANOVA is given by partial eta-squared. The general equation for this statistic is</p>
+<p><span class="math display">\[\eta_p^2 = \frac{SS_\text{predictor}}{SS_\text{predictor} + SS_\text{residuals}},\]</span></p>
+<p>where SS stands for <em>sum of squares</em>.</p>
+</div>
+</div>
 <div id="manipulation-check-of-extraordinariness" class="section level3 tabset tabset-pills">
 <h3>Manipulation Check of Extraordinariness</h3>
 <p>Do participants in the extraordinary condition actually perceive Valentine’s Day to be more extraordinary than participants rating a normal day?</p>
 <p>We can answer this with a simple one-way between-groups ANOVA.</p>
-<p><strong>Note</strong>: the <em>F</em>-value will not match the statistic reported in the original paper.</p>
+<p><strong>Note</strong>: the <em>F</em>-value and partial eta-squared will not match the statistics reported in the original paper.</p>
 <pre class="r"><code># Create analysis of variance
 t1_extra_aov &lt;- aov(t1_extra ~ condition, data = zhang_clean)
 
@@ -358,23 +391,114 @@ Anova(t1_extra_aov)</code></pre>
 ## Residuals 249.469 128                      
 ## ---
 ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1</code></pre>
+<pre class="r"><code># Descriptive statistics
+zhang_clean %&gt;%
+  group_by(condition) %&gt;%
+  summarize(
+    mean = mean(t1_extra),
+    sd = sd(t1_extra),
+    n = n(),
+    upper = mean - (1.96 * (sd / sqrt(n))),
+    lower = mean + (1.96 * (sd / sqrt(n)))
+  )</code></pre>
+<pre><code>## # A tibble: 2 x 6
+##   condition      mean    sd     n upper lower
+##   &lt;fct&gt;         &lt;dbl&gt; &lt;dbl&gt; &lt;int&gt; &lt;dbl&gt; &lt;dbl&gt;
+## 1 ordinary       2.73  1.42    64  2.39  3.08
+## 2 extraordinary  4.35  1.38    66  4.02  4.68</code></pre>
+<pre class="r"><code># Tidy aov object
+(t1_extra_tidied &lt;- tidy(t1_extra_aov))</code></pre>
+<pre><code>## # A tibble: 2 x 6
+##   term         df sumsq meansq statistic  p.value
+##   &lt;chr&gt;     &lt;dbl&gt; &lt;dbl&gt;  &lt;dbl&gt;     &lt;dbl&gt;    &lt;dbl&gt;
+## 1 condition     1  84.7  84.7       43.4  1.04e-9
+## 2 Residuals   128 249.    1.95      NA   NA</code></pre>
+<pre class="r"><code># Partial eta-squared
+(t1_extra_tidied[1, 3] / (t1_extra_tidied[1, 3] + t1_extra_tidied[2, 3])) %&gt;%
+  pull()</code></pre>
+<pre><code>## [1] 0.2533613</code></pre>
+<p>A manipulation check at Time 1 revealed that participants assigned to the extraordinary condition perceived their experience with a lover to be more extraordinary (<em>M</em> = 4.35, <em>SD</em> = 1.38, 95% CI = [4.02, 4.68]) than those in the ordinary condition (<em>M</em> = 2.73, <em>SD</em> = 1.42, 95% CI = [2.39, 3.08]), <em>F</em>(1, 128) = 43.43, <em>p</em> &lt; .001, <span class="math inline">\(\eta_p^2 = .25\)</span>.</p>
 <div id="outliers" class="section level4">
 <h4>Outliers?</h4>
+<pre class="r"><code>ggplot(zhang_clean, aes(x = condition, y = t1_extra)) +
+  geom_boxplot()</code></pre>
+<p><img src="data:image/png;base64,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" width="672" /></p>
+<p>No outliers in dependent variable for either condition.</p>
 </div>
 <div id="normality" class="section level4">
 <h4>Normality?</h4>
+<pre class="r"><code>shapiro.test(residuals(t1_extra_aov))</code></pre>
+<pre><code>## 
+##  Shapiro-Wilk normality test
+## 
+## data:  residuals(t1_extra_aov)
+## W = 0.97565, p-value = 0.01928</code></pre>
+<p>Since <em>p</em> = .019, it is less than the significance level and we reject the null hypothesis of this test: the data are not normally distributed. However, remember that the one-way ANOVA is robust and can withstand violations of normality.</p>
+<p>Besides, each between-subjects group has a sample size above 30, making this assumption <a href="http://www2.psychology.uiowa.edu/faculty/mordkoff/GradStats/part%201/I.07%20normal.pdf">more-or-less met</a>.</p>
 </div>
 <div id="homoscedasticity" class="section level4">
 <h4>Homoscedasticity?</h4>
+<pre class="r"><code>leveneTest(t1_extra ~ condition, data = zhang_clean)</code></pre>
+<pre><code>## Levene's Test for Homogeneity of Variance (center = median)
+##        Df F value Pr(&gt;F)
+## group   1  0.3641 0.5473
+##       128</code></pre>
+<p>The <em>F</em>-value does not exceed the critical values (<em>p</em> = .547), so we accept the null hypothesis: the variances are homogenous.</p>
 </div>
 </div>
-<div id="extraordinariness-over-time" class="section level3">
-<h3>Extraordinariness Over Time</h3>
+<div id="extraordinariness-over-time-by-condition" class="section level3 tabset tabset-pills">
+<h3>Extraordinariness Over Time by Condition</h3>
+<div id="outliers-1" class="section level4">
+<h4>Outliers?</h4>
+</div>
+<div id="normality-1" class="section level4">
+<h4>Normality?</h4>
+</div>
+<div id="homoscedasticity-1" class="section level4">
+<h4>Homoscedasticity?</h4>
+</div>
+<div id="sphericity" class="section level4">
+<h4>Sphericity?</h4>
+</div>
+</div>
+<div id="curiosity-over-time-by-condition" class="section level3 tabset tabset-pills">
+<h3>Curiosity Over Time by Condition</h3>
+<div id="outliers-2" class="section level4">
+<h4>Outliers?</h4>
+</div>
+<div id="normality-2" class="section level4">
+<h4>Normality?</h4>
+</div>
+<div id="homoscedasticity-2" class="section level4">
+<h4>Homoscedasticity?</h4>
+</div>
+<div id="sphericity-1" class="section level4">
+<h4>Sphericity?</h4>
+</div>
+</div>
+<div id="interest-over-time-by-condition" class="section level3 tabset tabset-pills">
+<h3>Interest Over Time by Condition</h3>
+<div id="outliers-3" class="section level4">
+<h4>Outliers?</h4>
+</div>
+<div id="normality-3" class="section level4">
+<h4>Normality?</h4>
+</div>
+<div id="homoscedasticity-3" class="section level4">
+<h4>Homoscedasticity?</h4>
+</div>
+<div id="sphericity-2" class="section level4">
+<h4>Sphericity?</h4>
+</div>
+</div>
+<div id="visualize" class="section level3">
+<h3>Visualize</h3>
 </div>
 </div>
 <div id="communicate" class="section level2">
 <h2>Communicate</h2>
 <hr />
+<p>A manipulation check at Time 1 revealed that participants assigned to the extraordinary condition perceived their experience with a lover to be more extraordinary (<em>M</em> = 4.35, <em>SD</em> = 1.38, 95% CI = [4.02, 4.68]) than those in the ordinary condition (<em>M</em> = 2.73, <em>SD</em> = 1.42, 95% CI = [2.39, 3.08]), <em>F</em>(1, 128) = 43.43, <em>p</em> &lt; .001, <span class="math inline">\(\eta_p^2 = .25\)</span>.</p>
 </div>
 </div>
 <div id="acknowledgements" class="section level1">
@@ -405,7 +529,7 @@ Anova(t1_extra_aov)</code></pre>
 ##  backports     1.1.2    2017-12-13 [1] CRAN (R 3.5.0)
 ##  base64enc     0.1-3    2015-07-28 [1] CRAN (R 3.5.0)
 ##  bindr         0.1.1    2018-03-13 [1] CRAN (R 3.5.0)
-##  bindrcpp      0.2.2    2018-03-29 [1] CRAN (R 3.5.0)
+##  bindrcpp    * 0.2.2    2018-03-29 [1] CRAN (R 3.5.0)
 ##  broom       * 0.5.0    2018-07-17 [1] CRAN (R 3.5.1)
 ##  callr         3.0.0    2018-08-24 [1] CRAN (R 3.5.1)
 ##  car         * 3.0-2    2018-08-23 [1] CRAN (R 3.5.1)
@@ -435,6 +559,7 @@ Anova(t1_extra_aov)</code></pre>
 ##  httr          1.3.1    2017-08-20 [1] CRAN (R 3.5.1)
 ##  jsonlite      1.5      2017-06-01 [1] CRAN (R 3.5.1)
 ##  knitr         1.20     2018-02-20 [1] CRAN (R 3.5.0)
+##  labeling      0.3      2014-08-23 [1] CRAN (R 3.5.0)
 ##  lattice       0.20-38  2018-11-04 [1] CRAN (R 3.5.1)
 ##  lazyeval      0.2.1    2017-10-29 [1] CRAN (R 3.5.0)
 ##  lubridate     1.7.4    2018-04-11 [1] CRAN (R 3.5.1)
