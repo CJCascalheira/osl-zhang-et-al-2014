@@ -222,6 +222,52 @@ zhang_long %>%
 
 ####### INTEREST OVER TIME BY CONDITION #######
 
+# Create aov object
+interest_aov <- aov(interest_rating ~ condition*interest_time + Error(subject_id),
+                    data = zhang_long)
+
+# Summarize the model
+summary(interest_aov)
+
+# Tidy output
+(interest_tidied <- tidy(interest_aov))
+
+# Partial eta-squared for main effect of time
+interest_tidied$sumsq[3] / (interest_tidied$sumsq[3] + interest_tidied$sumsq[5])
+
+# Partial eta-squared for interaction between time and condition
+interest_tidied$sumsq[4] / (interest_tidied$sumsq[4] + interest_tidied$sumsq[5])
+
+# Create linear mixed-effects model
+interest_lme <- lme(interest_rating ~ condition*interest_time, random = ~1|subject_id,
+                    data = zhang_long)
+
+# Print ANOVA summary using type III sum of squares
+options(contrasts = c("contr.sum", "contr.poly"))
+Anova(interest_lme, type = "III")
+
+# Descriptives for time
+zhang_long %>%
+  group_by(interest_time) %>%
+  summarize(
+    n = n(),
+    mean = mean(interest_rating),
+    sd = sd(interest_rating),
+    lower = mean - (1.96 * (sd / sqrt(n))),
+    upper = mean + (1.96 * (sd / sqrt(n)))
+  )
+
+# Descriptives for simple-effects
+zhang_long %>%
+  group_by(condition, interest_time) %>%
+  summarize(
+    n = n(),
+    mean = mean(interest_rating),
+    sd = sd(interest_rating),
+    lower = mean - (1.96 * (sd / sqrt(n))),
+    upper = mean + (1.96 * (sd / sqrt(n)))
+  )
+
 #### Outliers?
 
 #### Normality?

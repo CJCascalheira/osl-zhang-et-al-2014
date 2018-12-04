@@ -386,6 +386,58 @@ Another repeated measures ANOVA, with the rating of curiosity as the dependent m
 
 ### Interest Over Time by Condition {.tabset .tabset-pills}
 
+We will run the sample analysis again, creating `aov` and `lme` objects, finding the effect size, and calculating summary statistics.
+
+```{r}
+# Create aov object
+interest_aov <- aov(interest_rating ~ condition*interest_time + Error(subject_id),
+                    data = zhang_long)
+
+# Summarize the model
+summary(interest_aov)
+
+# Tidy output
+(interest_tidied <- tidy(interest_aov))
+
+# Partial eta-squared for main effect of time
+interest_tidied$sumsq[3] / (interest_tidied$sumsq[3] + interest_tidied$sumsq[5])
+
+# Partial eta-squared for interaction between time and condition
+interest_tidied$sumsq[4] / (interest_tidied$sumsq[4] + interest_tidied$sumsq[5])
+
+# Create linear mixed-effects model
+interest_lme <- lme(interest_rating ~ condition*interest_time, random = ~1|subject_id,
+                    data = zhang_long)
+
+# Print ANOVA summary using type III sum of squares
+options(contrasts = c("contr.sum", "contr.poly"))
+Anova(interest_lme, type = "III")
+
+# Descriptives for time
+zhang_long %>%
+  group_by(interest_time) %>%
+  summarize(
+    n = n(),
+    mean = mean(interest_rating),
+    sd = sd(interest_rating),
+    lower = mean - (1.96 * (sd / sqrt(n))),
+    upper = mean + (1.96 * (sd / sqrt(n)))
+  )
+
+# Descriptives for simple-effects
+zhang_long %>%
+  group_by(condition, interest_time) %>%
+  summarize(
+    n = n(),
+    mean = mean(interest_rating),
+    sd = sd(interest_rating),
+    lower = mean - (1.96 * (sd / sqrt(n))),
+    upper = mean + (1.96 * (sd / sqrt(n)))
+  )
+```
+
+A third repeated measures ANOVA used the composite interest score as the continuous dependent variable. Once again, time was a main effect, *F*(1, 128) = 25.88, *p* < .001, $\eta_p^2 = .17$; participants tended to be more interested upon reading their letter, at Time 2 (*M* = 4.69, *SD* = 1.19, 95% CI = [4.49, 4.90]), than they had anticipated, at Time 1 (*M* = 4.20, *SD* = 1.12, 95% CI = [4.01, 4.40]). The interaction of time and type of event was again significant, *F*(1, 128) = 4.44, *p* = .04, $\eta_p^2 = .03$.
+
 #### Outliers?
 
 #### Normality?
@@ -403,6 +455,8 @@ A manipulation check at Time 1 revealed that participants assigned to the extrao
 *Extraordinariness*. A repeated measures ANOVA was conducted using the rating of experience as the dependent variable, time as the within-subjects factor, and type of event as the between-subjects factor. A main effect of time was significant, *F*(1, 128) = 26.23, *p* < .001, $\eta_p^2 = .17$; experiences seemed more extraordinary for both groups at Time 2 (*M* = 4.23, *SD* = 1.22, 95% CI = [4.02, 4.44]) than at Time 1 (*M* = 3.55, *SD* = 1.61, 95% CI = [3.28, 3.83]). The analysis revealed an interaction between time and condition, *F*(1, 128) = 15.02, *p* < .001, $\eta_p^2 = .10$.
 
 *Curiosity*. Another repeated measures ANOVA, with the rating of curiosity as the dependent measure, time as the within-subjects factor, and type of event as the between-subjects factor, revealed a main effect of time, *F*(1, 128) = 6.16, *p* = .01, $\eta_p^2 = .04$. Overall, ratings of curiosity were lower at Time 1 (*M* = 3.99, *SD* = 1.42, 95% CI = [3.75, 4.24]) than at Time 2 (*M* = 4.33, *SD* = 1.42, 95% CI = [4.09, 4.57]). An interaction between time and type of experience was also significant, *F*(1, 128) = 5.17, *p* = .02, $\eta_p^2 = .04$.
+
+*Interest*. A third repeated measures ANOVA used the composite interest score as the continuous dependent variable. Once again, time was a main effect, *F*(1, 128) = 25.88, *p* < .001, $\eta_p^2 = .17$; participants tended to be more interested upon reading their letter, at Time 2 (*M* = 4.69, *SD* = 1.19, 95% CI = [4.49, 4.90]), than they had anticipated, at Time 1 (*M* = 4.20, *SD* = 1.12, 95% CI = [4.01, 4.40]). The interaction of time and type of event was again significant, *F*(1, 128) = 4.44, *p* = .04, $\eta_p^2 = .03$.
 
 # Acknowledgements
 ___
