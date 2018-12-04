@@ -324,6 +324,58 @@ A repeated measures ANOVA was conducted using the rating of experience as the de
 
 ### Curiosity Over Time by Condition {.tabset .tabset-pills}
 
+Now we rinse and repeat.
+
+```{r}
+# Create aov object
+curious_aov <- aov(curious_rating ~ condition*curious_time + Error(subject_id),
+                   data = zhang_long)
+
+# Summary of model
+summary(curious_aov)
+
+# Tidy output
+(curious_tidied <- tidy(curious_aov))
+
+# Partial eta-squared for main effect of time
+curious_tidied$sumsq[3] / (curious_tidied$sumsq[3] + curious_tidied$sumsq[5])
+
+# Partial eta-squared for interaction of time and condition
+curious_tidied$sumsq[4] / (curious_tidied$sumsq[4] + curious_tidied$sumsq[5])
+
+# Create linear mixed-effects model
+curious_lme <- lme(curious_rating ~ condition*curious_time, random = ~1|subject_id,
+                   data = zhang_long)
+
+# Print ANOVA summary using type III sum of squares
+options(contrasts = c("contr.sum", "contr.poly"))
+Anova(curious_lme, type = "III")
+
+# Descriptives for time
+zhang_long %>%
+  group_by(curious_time) %>%
+  summarize(
+    n = n(),
+    mean = mean(curious_rating),
+    sd = sd(curious_rating),
+    lower = mean - (1.96 * (sd / sqrt(n))),
+    upper = mean + (1.96 * (sd / sqrt(n)))
+  )
+
+# Descriptives for simple-effects
+zhang_long %>%
+  group_by(condition, curious_time) %>%
+  summarize(
+    n = n(),
+    mean = mean(curious_rating),
+    sd = sd(curious_rating),
+    lower = mean - (1.96 * (sd / sqrt(n))),
+    upper = mean + (1.96 * (sd / sqrt(n)))
+  )
+```
+
+Another repeated measures ANOVA, with the rating of curiosity as the dependent measure, time as the within-subjects factor, and type of event as the between-subjects factor, revealed a main effect of time, *F*(1, 128) = 6.16, *p* = .01, $\eta_p^2 = .04$. Overall, ratings of curiosity were lower at Time 1 (*M* = 3.99, *SD* = 1.42, 95% CI = [3.75, 4.24]) than at Time 2 (*M* = 4.33, *SD* = 1.42, 95% CI = [4.09, 4.57]). An interaction between time and type of experience was also significant, *F*(1, 128) = 5.17, *p* = .02, $\eta_p^2 = .04$.
+
 #### Outliers?
 
 #### Normality?
@@ -347,6 +399,10 @@ A repeated measures ANOVA was conducted using the rating of experience as the de
 ## Communicate
 ___
 A manipulation check at Time 1 revealed that participants assigned to the extraordinary condition perceived their experience with a lover to be more extraordinary (*M* = 4.35, *SD* = 1.38, 95% CI = [4.02, 4.68]) than those in the ordinary condition (*M* = 2.73, *SD* = 1.42, 95% CI = [2.39, 3.08]), *F*(1, 128) = 43.43, *p* < .001, $\eta_p^2 = .25$.
+
+*Extraordinariness*. A repeated measures ANOVA was conducted using the rating of experience as the dependent variable, time as the within-subjects factor, and type of event as the between-subjects factor. A main effect of time was significant, *F*(1, 128) = 26.23, *p* < .001, $\eta_p^2 = .17$; experiences seemed more extraordinary for both groups at Time 2 (*M* = 4.23, *SD* = 1.22, 95% CI = [4.02, 4.44]) than at Time 1 (*M* = 3.55, *SD* = 1.61, 95% CI = [3.28, 3.83]). The analysis revealed an interaction between time and condition, *F*(1, 128) = 15.02, *p* < .001, $\eta_p^2 = .10$.
+
+*Curiosity*. Another repeated measures ANOVA, with the rating of curiosity as the dependent measure, time as the within-subjects factor, and type of event as the between-subjects factor, revealed a main effect of time, *F*(1, 128) = 6.16, *p* = .01, $\eta_p^2 = .04$. Overall, ratings of curiosity were lower at Time 1 (*M* = 3.99, *SD* = 1.42, 95% CI = [3.75, 4.24]) than at Time 2 (*M* = 4.33, *SD* = 1.42, 95% CI = [4.09, 4.57]). An interaction between time and type of experience was also significant, *F*(1, 128) = 5.17, *p* = .02, $\eta_p^2 = .04$.
 
 # Acknowledgements
 ___

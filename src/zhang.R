@@ -164,6 +164,52 @@ zhang_long %>%
 
 ####### CURIOSITY OVER TIME BY CONDITION #######
 
+# Create aov object
+curious_aov <- aov(curious_rating ~ condition*curious_time + Error(subject_id),
+                   data = zhang_long)
+
+# Summary of model
+summary(curious_aov)
+
+# Tidy output
+(curious_tidied <- tidy(curious_aov))
+
+# Partial eta-squared for main effect of time
+curious_tidied$sumsq[3] / (curious_tidied$sumsq[3] + curious_tidied$sumsq[5])
+
+# Partial eta-squared for interaction of time and condition
+curious_tidied$sumsq[4] / (curious_tidied$sumsq[4] + curious_tidied$sumsq[5])
+
+# Create linear mixed-effects model
+curious_lme <- lme(curious_rating ~ condition*curious_time, random = ~1|subject_id,
+                   data = zhang_long)
+
+# Print ANOVA summary using type III sum of squares
+options(contrasts = c("contr.sum", "contr.poly"))
+Anova(curious_lme, type = "III")
+
+# Descriptives for time
+zhang_long %>%
+  group_by(curious_time) %>%
+  summarize(
+    n = n(),
+    mean = mean(curious_rating),
+    sd = sd(curious_rating),
+    lower = mean - (1.96 * (sd / sqrt(n))),
+    upper = mean + (1.96 * (sd / sqrt(n)))
+  )
+
+# Descriptives for simple-effects
+zhang_long %>%
+  group_by(condition, curious_time) %>%
+  summarize(
+    n = n(),
+    mean = mean(curious_rating),
+    sd = sd(curious_rating),
+    lower = mean - (1.96 * (sd / sqrt(n))),
+    upper = mean + (1.96 * (sd / sqrt(n)))
+  )
+
 #### Outliers?
 
 #### Normality?
