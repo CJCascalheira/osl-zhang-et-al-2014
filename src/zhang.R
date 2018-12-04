@@ -82,8 +82,8 @@ zhang_clean %>%
     mean = mean(t1_extra),
     sd = sd(t1_extra),
     n = n(),
-    upper = mean - (1.96 * (sd / sqrt(n))),
-    lower = mean + (1.96 * (sd / sqrt(n)))
+    lower = mean - (1.96 * (sd / sqrt(n))),
+    upper = mean + (1.96 * (sd / sqrt(n)))
   )
 
 # Tidy aov object
@@ -107,7 +107,50 @@ leveneTest(t1_extra ~ condition, data = zhang_clean)
 
 ####### EXTRAORDINARINESS OVER TIME BY CONDITION #######
 
+# Create analysis of variance
+extra_aov <- aov(extra_rating ~ condition*extra_time + Error(subject_id), data = zhang_long)
 
+# Summarize the ANOVA
+summary(extra_aov)
+
+# Tidy output
+(extra_tidied <- tidy(extra_aov))
+
+# Partial eta-squared for main effect of time
+extra_tidied$sumsq[3] / (extra_tidied$sumsq[3] + extra_tidied$sumsq[5])
+
+# Partial eta-squared for interaction between time and condition
+extra_tidied$sumsq[4] / (extra_tidied$sumsq[4] + extra_tidied$sumsq[5])
+
+# Create linear mixed-effects model
+extra_lme <- lme(extra_rating ~ condition*extra_time, random = ~1|subject_id,
+                 data = zhang_long)
+
+# Print ANOVA summary using type III sum of squares
+options(contrasts = c("contr.sum", "contr.poly"))
+Anova(extra_lme, type = "III")
+
+# Descriptives for time
+zhang_long %>%
+  group_by(extra_time) %>%
+  summarize(
+    n = n(),
+    mean = mean(extra_rating),
+    sd = sd(extra_rating),
+    lower = mean - (1.96 * (sd / sqrt(n))),
+    upper = mean + (1.96 * (sd / sqrt(n)))
+  )
+
+# Descriptives for simple-effects
+zhang_long %>%
+  group_by(condition, extra_time) %>%
+  summarize(
+    n = n(),
+    mean = mean(extra_rating),
+    sd = sd(extra_rating),
+    lower = mean - (1.96 * (sd / sqrt(n))),
+    upper = mean + (1.96 * (sd / sqrt(n)))
+  )
 
 #### Outliers?
 

@@ -90,7 +90,7 @@ How many participants are in each condition?
 zhang_clean %>% count(condition)
 ```
 
-Thus, we have an unbalanced design.
+Thus, we have an unbalanced design. This will affect our analytic approach.
 
 Let's split the data by condition to calculate the standard error later with `psych::describe`.
 
@@ -212,8 +212,8 @@ zhang_clean %>%
     mean = mean(t1_extra),
     sd = sd(t1_extra),
     n = n(),
-    upper = mean - (1.96 * (sd / sqrt(n))),
-    lower = mean + (1.96 * (sd / sqrt(n)))
+    lower = mean - (1.96 * (sd / sqrt(n))),
+    upper = mean + (1.96 * (sd / sqrt(n)))
   )
 
 # Tidy aov object
@@ -252,7 +252,67 @@ The *F*-value does not exceed the critical values (*p* = .547), so we accept the
 
 ### Extraordinariness Over Time by Condition {.tabset .tabset-pills}
 
+Since the design is unorthogonal, the classic `aov()` syntax will return wonky statistics for this repeated measures ANOVA. The output will not match SPSS unless we correct for the unbalanced design. Remember, the uneven cell sizes derive from the unbalanced assignment of participants to the two conditions (i.e., ordinary: n = 64, extraordinary: n = 66).
 
+We will still construct the `aov` object to obtain the sum of squares (to calculate effect size) and the degrees of freedom of the error (for reporting).
+
+```{r}
+# Create analysis of variance
+extra_aov <- aov(extra_rating ~ condition*extra_time + Error(subject_id), data = zhang_long)
+
+# Summarize the ANOVA
+summary(extra_aov)
+
+# Tidy output
+(extra_tidied <- tidy(extra_aov))
+
+# Partial eta-squared for main effect of time
+extra_tidied$sumsq[3] / (extra_tidied$sumsq[3] + extra_tidied$sumsq[5])
+
+# Partial eta-squared for interaction between time and condition
+extra_tidied$sumsq[4] / (extra_tidied$sumsq[4] + extra_tidied$sumsq[5])
+```
+
+Notice how the main effect on time is *F*(1, 128) = 25.63. This is erroneous.
+
+A solution is found in a call to `car::Anova` by explicitly setting the sum of squares to Type III. We must set the `options()` for contrasts before executing the `Anova()` summary. However, `Anova()` cannot read the ouput of an `aov` object. So, it is necessary to construct a linear mixed-effects model of repeated measures ANOVA using `nlme::lme`.
+
+```{r}
+# Create linear mixed-effects model
+extra_lme <- lme(extra_rating ~ condition*extra_time, random = ~1|subject_id, data = zhang_long)
+
+# Print ANOVA summary using type III sum of squares
+options(contrasts = c("contr.sum", "contr.poly"))
+Anova(extra_lme, type = "III")
+```
+
+Now we need the descriptive statistics for reporting.
+
+```{r}
+# Descriptives for time
+zhang_long %>%
+  group_by(extra_time) %>%
+  summarize(
+    n = n(),
+    mean = mean(extra_rating),
+    sd = sd(extra_rating),
+    lower = mean - (1.96 * (sd / sqrt(n))),
+    upper = mean + (1.96 * (sd / sqrt(n)))
+  )
+
+# Descriptives for simple-effects
+zhang_long %>%
+  group_by(condition, extra_time) %>%
+  summarize(
+    n = n(),
+    mean = mean(extra_rating),
+    sd = sd(extra_rating),
+    lower = mean - (1.96 * (sd / sqrt(n))),
+    upper = mean + (1.96 * (sd / sqrt(n)))
+  )
+```
+
+A repeated measures ANOVA was conducted using the rating of experience as the dependent variable, time as the within-subjects factor, and type of event as the between-subjects factor. A main effect of time was significant, *F*(1, 128) = 26.23, *p* < .001, $\eta_p^2 = .17$; experiences seemed more extraordinary for both groups at Time 2 (*M* = 4.23, *SD* = 1.22, 95% CI = [4.02, 4.44]) than at Time 1 (*M* = 3.55, *SD* = 1.61, 95% CI = [3.28, 3.83]). The analysis revealed an interaction between time and condition, *F*(1, 128) = 15.02, *p* < .001, $\eta_p^2 = .10$.
 
 #### Outliers?
 
