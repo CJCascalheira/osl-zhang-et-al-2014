@@ -5,7 +5,7 @@ library(psych)
 library(broom)
 library(car)
 library(nlme)
-library(multcomp)
+library(ez)
 library(tidyverse)
 
 # Set working directory
@@ -41,10 +41,6 @@ zhang_clean <- within(zhang_clean, {
 # Number of participants in each condition
 zhang_clean %>% count(condition)
 
-# Split data by condition for descriptive statistics
-ordinary <- zhang_clean %>% filter(condition == "ordinary")
-extraordinary <- zhang_clean %>% filter(condition == "extraordinary")
-
 # Convert data frame into long format
 long_extra <- zhang_clean %>%
   select(condition, subject_id, t1_extra, t2_extra) %>%
@@ -66,6 +62,10 @@ long_interest <- zhang_clean %>%
   curious_time <- factor(curious_time)
   interest_time <- factor(interest_time)
 }))
+
+# Split data by condition
+ordinary <- zhang_long %>% filter(condition == "ordinary")
+extraordinary <- zhang_long %>% filter(condition == "extraordinary")
 
 ####### EXTRAORDINARINESS MANIPULATION CHECK #######
 
@@ -152,11 +152,67 @@ zhang_long %>%
     upper = mean + (1.96 * (sd / sqrt(n)))
   )
 
+
+
+
+
+
+# Split data by condition
+ordinary <- zhang_long %>% filter(condition == "ordinary")
+extraordinary <- zhang_long %>% filter(condition == "extraordinary")
+time_1 <- zhang_long %>% filter(extra_time == "t1_extra")
+time_2 <- zhang_long %>% filter(extra_time == "t2_extra")
+
+############### SIMPLE-EFFECTS TEST OPTION 1
+
+# Tukey HSD; no F-alue
+library(agricolae)
+
+# Split data along within-subjects variable
+time_1 <- zhang_long %>% filter(extra_time == "t1_extra")
+time_2 <- zhang_long %>% filter(extra_time == "t2_extra")
+
+# Create analysis of variance
+extra_t1_out <- aov(extra_rating ~ condition, data = time_1)
+extra_t2_out <- aov(extra_rating ~ condition, data = time_2)
+
+# Analyze with Tukey HSD
+HSD.test(extra_t1_out, "condition", group = FALSE, console = TRUE)
+HSD.test(extra_t2_out, "condition", group = FALSE, console = TRUE)
+
+
+
+
+
+############### SIMPLE-EFFECTS TEST OPTION 2
+extra_t1_out <- lme(extra_rating ~ condition, random = ~1|subject_id, data = time_1, method = "ML")
+extra_t2_out <- lme(extra_rating ~ condition, random = ~1|subject_id, data = time_2, method = "ML")
+
+options(contrasts = c("contr.sum", "contr.poly"))
+Anova(lme(extra_rating ~ extra_time, random = ~1|subject_id, data = extraordinary, method = "ML"), type = "III")
+
+output <- lme(extra_rating ~ extra_time, random = ~1|subject_id, data = ordinary, method = "ML")
+
+summary(aov(extra_rating ~ extra_time + Error(subject_id), data = ordinary))
+
+
+
+ezANOVA(data = ordinary,
+  dv = extra_rating,
+  wid = subject_id,
+  within = extra_time,
+  detailed = TRUE,
+  type = 3
+)
+
+
+
 #### Outliers?
 
 #### Normality?
 
 #### Homoscedasticity?
+leveneTest(extra_rating ~ condition, data = zhang_long, center = mean)
 
 #### Sphericity?
 
@@ -183,6 +239,7 @@ curious_tidied$sumsq[4] / (curious_tidied$sumsq[4] + curious_tidied$sumsq[5])
 # Create linear mixed-effects model
 curious_lme <- lme(curious_rating ~ condition*curious_time, random = ~1|subject_id,
                    data = zhang_long)
+
 
 # Print ANOVA summary using type III sum of squares
 options(contrasts = c("contr.sum", "contr.poly"))

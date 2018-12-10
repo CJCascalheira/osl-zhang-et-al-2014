@@ -39,7 +39,7 @@ library(psych) # describe data
 library(broom) # coefficient-level information
 library(car) # Levene's test, Anova function
 library(nlme) # repeated measures ANOVA
-library(multcomp) # post-hoc measures
+library(ez) # alternative way to calculate ANOVA
 library(tidyverse) # utility and visualization
 ```
 
@@ -92,14 +92,7 @@ zhang_clean %>% count(condition)
 
 Thus, we have an unbalanced design. This will affect our analytic approach.
 
-Let's split the data by condition to calculate the standard error later with `psych::describe`.
-
-```{r}
-ordinary <- zhang_clean %>% filter(condition == "ordinary")
-extraordinary <- zhang_clean %>% filter(condition == "extraordinary")
-```
-
-Finally, in order to conduct a repeated measures ANOVA with a continuous dependent measure, time as the within-subjects factor, and condition as the between-subjects factor, it is imperative that we transform the data frame into long format.
+In order to conduct a repeated measures ANOVA with a continuous dependent measure, time as the within-subjects factor, and condition as the between-subjects factor, it is imperative that we transform the data frame into long format.
 
 ```{r}
 long_extra <- zhang_clean %>%
@@ -127,11 +120,18 @@ The new variables with the suffix `_time` must become factors.
 }))
 ```
 
+Finally, let's split the data by condition to [examine simple main effects](https://www.r-bloggers.com/r-tutorial-series-two-way-anova-with-interactions-and-simple-main-effects/) if our omnibus ANOVAs are significant.
+
+```{r}
+ordinary <- zhang_long %>% filter(condition == "ordinary")
+extraordinary <- zhang_long %>% filter(condition == "extraordinary")
+```
+
 ## Understand
 ___
-This study is truly a factorial design. It combines within-subjects and between-subjects factors. We must perform repeated measures ANOVA because [all participants received all conditions](http://www.discoveringstatistics.com/docs/repeatedmeasures.pdf).
+This study is truly a factorial design. It combines within-subjects and between-subjects factors. We must conduct a mixed ANOVA because [all participants were tested for each measure over two time points](http://www.discoveringstatistics.com/docs/repeatedmeasures.pdf) (i.e., repeated measures) and we are interested in how the conditions vary across participants (i.e., between-subjects component).
 
-We will test for mean differences between conditions and between time points, running post-hoc tests to discover which condition/time combination is significant. The null and altnerative hypotheses are:
+We will test for mean differences between conditions and between time points, running tests for simple-effects to discover which condition/time combination is significant. The null and altnerative hypotheses are:
 
 $$H_0: \mu_1 = \mu_2 = \mu_3 = \dots = \mu_k \\ H_1: \text{at least two means are significantly different}$$
 
@@ -148,9 +148,9 @@ The **repeated measures mixed ANOVA** has [six assumptions](https://statistics.l
 
 4. **Approximately normal distribution** of the dependent variable for each level combination of both the within-subjects and between-subjects factors. Since ANOVA is robust, mild violations of normality can be tolerated if the number of observations is uniform across levels, or when the sample size is large, `n >= 30`. The assumption assesses the distribution of residuals with the Shapiro-Wilk test, density curves, Q-Q plots, or histograms.
 
-5. **Homogeneity of variances** for each combination of the groups of the two within-subjects and between-subjects factors. Assessed with Levene's test.
+5. **Homogeneity of variances** for each between-subjects factor. Assessed with Levene's test.
 
-6. **Sphericity**, which states that the differences in variances between the related groups of the within-subjects factor for all groups of the between-subjects factor (i.e., dependent variable) are equal. [This assumption](https://www.sheffield.ac.uk/polopoly_fs/1.531222!/file/MASH_repeated_measures_ANOVA_SPSS.pdf) *must* be met. It is assessed with Mauchley's test. If *p* > 0.05, sphericity can be assumed. If the test is significant, then use the Greenhouse-Geisser correction.
+6. **Sphericity**, which states that the differences in variances between the related groups of the within-subjects factor for all groups of the between-subjects factor (i.e., dependent variable) are equal. [This assumption](https://www.sheffield.ac.uk/polopoly_fs/1.531222!/file/MASH_repeated_measures_ANOVA_SPSS.pdf) *must* be met. It is assessed with Mauchly's test. If *p* > 0.05, sphericity can be assumed. If the test is significant, then use the Greenhouse-Geisser correction.
 
 ### Auxiliary Analyses {.tabset .tabset-pills}
 
@@ -319,6 +319,7 @@ A repeated measures ANOVA was conducted using the rating of experience as the de
 #### Normality?
 
 #### Homoscedasticity?
+Unequal variances reduce the power of the ANOVA and increase the likelihood of a Type II error (i.e., failure to reject null hypothesis when the alternative hypothesis is true).
 
 #### Sphericity?
 
